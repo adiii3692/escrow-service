@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:18-alpine # Use the official PostgreSQL image
+    restart: always # Restart the container if it fails
+    container_name: local_postgres 
+    environment:
+      POSTGRES_USER: user # Define the database user
+      POSTGRES_PASSWORD: password # Define the user's password
+      POSTGRES_DB: test_db # Define the database name
+    ports:
+      - "5432:5432" # Map host port 5432 to container port 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist data in a named volume
+
+volumes:
+  postgres_data: # Define the named volume for data persistence

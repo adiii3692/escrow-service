@@ -1,0 +1,8 @@
+_format_version: "3.0"
+services:
+- name: escrow-service
+  url: https://jsonplaceholder.typicode.com/users
+  routes:
+  - name: escrow-route
+    paths:
+    - /escrow
