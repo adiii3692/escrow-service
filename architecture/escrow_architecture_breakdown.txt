@@ -1,0 +1,95 @@
+
+Here’s a detailed architecture breakdown for your escrow system with the specified stack:
+
+1. Kong API Gateway (Docker)
+
+Role: Acts as the single entry point for all external requests.
+Responsibilities:
+- Authentication & Authorization: Uses OAuth2/JWT for client authentication.
+- Routing: Forwards requests to the Spring Boot application.
+- Rate Limiting & Logging: Prevents abuse and logs API calls.
+
+Communication:
+- Receives ISO 20022 messages from clients (encrypted with JWE, signed with JWS).
+- Passes them via HTTP REST to the Message Processing Layer in Spring Boot.
+
+
+2. Message Processing Layer (Spring Boot)
+
+Role: Handles ISO 20022 message parsing and validation.
+Responsibilities:
+- Schema Validation: Ensures incoming messages conform to ISO 20022 standards (pain.001, pacs.008, etc.).
+- Business Validation: Checks mandatory fields, transaction limits, and escrow rules.
+- Security Integration:
+  - Calls Security Layer to verify JWS signature and decrypt JWE payload.
+
+Communication:
+- Receives requests from Kong via REST.
+- Sends decrypted and validated data to Escrow Service.
+- Publishes events to ActiveMQ Artemis for asynchronous tasks (e.g., notifications).
+
+
+3. Security Layer
+
+Role: Provides cryptographic operations for inbound and outbound messages.
+Responsibilities:
+Inbound:
+- Verify JWS signature using sender’s public key.
+- Decrypt JWE payload using system’s private key.
+
+Outbound:
+- Sign response messages with JWS.
+- Encrypt messages with JWE before sending to external parties.
+
+Implementation:
+- Use Nimbus JOSE + JWT or Spring Security for JWE/JWS.
+
+Communication:
+- Exposed as a Spring Bean or microservice called by Message Processing and Escrow Service.
+- Interacts with Key Management System (KMS) for key retrieval.
+
+
+4. Escrow Service
+
+Role: Core business logic for escrow transactions.
+Responsibilities:
+- Create escrow accounts and hold funds.
+- Manage escrow lifecycle: INITIATED → FUNDS_HELD → RELEASED → CLOSED.
+- Trigger fund release when conditions are met.
+
+Communication:
+- Receives validated transaction data from Message Processing.
+- Persists data in PostgreSQL.
+- Publishes release events to ActiveMQ Artemis for asynchronous processing.
+- Calls Security Layer for signing and encrypting outbound ISO 20022 messages.
+
+
+5. PostgreSQL Database
+
+Role: Persistent storage for escrow transactions and audit logs.
+Responsibilities:
+- Stores transaction details, ISO 20022 message logs, and cryptographic metadata.
+- Implements optimistic locking for concurrency in multithreaded environment.
+
+Communication:
+- Accessed by Escrow Service via Spring Data JPA or Hibernate.
+
+
+6. ActiveMQ Artemis
+
+Role: Message broker for asynchronous communication.
+Responsibilities:
+- Handles events like fund release notifications and external bank communication.
+- Ensures reliable delivery and decouples services.
+
+Communication:
+- Escrow Service publishes events to Artemis.
+- External systems or internal consumers subscribe to relevant queues/topics.
+
+
+7. External Bank / Payment Network
+
+Role: Receives outbound ISO 20022 messages for fund transfers.
+Communication:
+- Messages are signed (JWS) and encrypted (JWE) by Security Layer.
+- Sent via HTTP REST or MQ depending on integration.

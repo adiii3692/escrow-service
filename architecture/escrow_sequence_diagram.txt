@@ -1,0 +1,24 @@
+
+Client           Kong API Gateway       Message Processor       Security Layer       Escrow Service       PostgreSQL       ActiveMQ Artemis       External Bank
+ |                     |                       |                     |                     |                   |                   |                     |
+ |---ISO20022 Msg----->|                       |                     |                     |                   |                   |                     |
+ |                     |---Forward REST------->|                     |                     |                   |                   |                     |
+ |                     |                       |---Verify JWS------->|                     |                   |                   |                     |
+ |                     |                       |<--Signature OK------|                     |                   |                   |                     |
+ |                     |                       |---Decrypt JWE------>|                     |                   |                   |                     |
+ |                     |                       |<--Payload OK--------|                     |                   |                   |                     |
+ |                     |                       |---Validate Msg------|                     |                   |                   |                     |
+ |                     |                       |---Send DTO--------->|                     |                   |                   |                     |
+ |                     |                       |                     |---Create Escrow---->|                   |                   |                     |
+ |                     |                       |                     |                     |---Persist-------->|                   |                     |
+ |                     |                       |                     |                     |<--Ack-------------|                   |                     |
+ |                     |                       |                     |                     |---Publish Event-->|                   |                     |
+ |                     |                       |                     |                     |                   |---Notify---------->|                     |
+ |                     |                       |                     |                     |                   |                   |---Trigger Release--->|
+ |                     |                       |                     |                     |                   |                   |                     |
+ |                     |                       |                     |                     |---Prepare Msg---->|                   |                     |
+ |                     |                       |                     |---Sign & Encrypt-->|                   |                   |                     |
+ |                     |                       |                     |                     |                   |                   |                     |
+ |                     |                       |                     |                     |---Send Msg------->|                   |                     |
+ |                     |                       |                     |                     |                   |                   |---Deliver----------->|
+ |                     |                       |                     |                     |                   |                   |                     |

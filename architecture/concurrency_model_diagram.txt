@@ -1,0 +1,28 @@
+
+Concurrency Model: Thread Interactions in Escrow System
+
+Threads: [T1, T2, T3, ...] represent concurrent processing of ISO 20022 messages.
+
++----------------------+       +----------------------+       +----------------------+       +----------------------+       +----------------------+       +----------------------+
+|   Message Processor  |       |    Security Layer    |       |    Escrow Service    |       |    ActiveMQ Artemis  |       |      PostgreSQL      |       |    External Bank     |
++----------------------+       +----------------------+       +----------------------+       +----------------------+       +----------------------+       +----------------------+
+        ^   ^   ^                     ^   ^   ^                     ^   ^   ^                     ^   ^   ^                     ^   ^   ^                     ^   ^   ^
+        |   |   |                     |   |   |                     |   |   |                     |   |   |                     |   |   |                     |   |   |
+        |   |   |                     |   |   |                     |   |   |                     |   |   |                     |   |   |                     |   |   |
+   T1---+   |   +---T2           T1---+   |   +---T2           T1---+   |   +---T2           T1---+   |   +---T2           T1---+   |   +---T2           T1---+   |   +---T2
+        |   |                         |   |                         |   |                         |   |                         |   |                         |   |
+        |   +---T3                   |   +---T3                   |   +---T3                   |   +---T3                   |   +---T3                   |   +---T3
+
+Flow:
+1. T1, T2, T3 start in Message Processor for parallel ISO 20022 validation.
+2. Each thread calls Security Layer for JWS verification & JWE decryption.
+3. Threads proceed to Escrow Service for business logic & lifecycle updates.
+4. Escrow Service threads persist data to PostgreSQL (transactional boundaries).
+5. Escrow Service publishes events to ActiveMQ Artemis (processed by multiple consumer threads).
+6. Outbound messages signed/encrypted by Security Layer in parallel.
+7. External Bank communication handled asynchronously per thread.
+
+Thread Safety:
+- Security Layer: Stateless or thread-safe cryptographic operations.
+- Database: Optimistic locking & @Transactional per thread.
+- ActiveMQ: Configured concurrency for consumers.

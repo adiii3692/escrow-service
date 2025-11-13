@@ -1,0 +1,75 @@
+
+Here’s how multithreading fits into the given architecture and which services would use it:
+
+---
+
+### Where Multithreading Applies
+The goal is to process multiple escrow transactions concurrently without blocking critical operations like cryptographic checks or database writes. In your architecture:
+
+---
+
+#### 1. Kong API Gateway
+- No multithreading needed here because Kong is already optimized for high concurrency internally.
+- It forwards requests to Spring Boot; threading is handled downstream.
+
+---
+
+#### 2. Message Processing Layer
+- Primary candidate for multithreading:
+  - Each incoming ISO 20022 message can be processed in its own thread.
+  - Tasks like schema validation, business rule checks, and calling the Security Layer can run asynchronously.
+- Implementation:
+  - Use @Async or CompletableFuture for parallel processing.
+  - Configure a ThreadPoolTaskExecutor for controlled concurrency.
+
+---
+
+#### 3. Security Layer
+- Thread-safe cryptographic operations:
+  - JWS verification and JWE decryption for inbound messages.
+  - JWS signing and JWE encryption for outbound messages.
+- Important:
+  - Ensure cryptographic libraries (e.g., Nimbus JOSE) are thread-safe.
+  - Avoid shared mutable state (e.g., keys should be immutable or fetched per request).
+
+---
+
+#### 4. Escrow Service
+- Multithreading for business logic:
+  - Multiple escrow transactions can be processed in parallel.
+  - Each thread handles lifecycle changes (INITIATED → FUNDS_HELD → RELEASED).
+- Database safety:
+  - Use @Transactional and optimistic locking to prevent race conditions.
+  - Each thread should operate on its own transaction boundary.
+
+---
+
+#### 5. ActiveMQ Artemis
+- Built-in concurrency:
+  - JMS listener containers can process messages in parallel.
+  - Configure concurrency like setConcurrency("5-10") for multiple consumers.
+- Use case:
+  - Fund release notifications and external bank communication handled asynchronously.
+
+---
+
+#### 6. PostgreSQL
+- No direct threading, but:
+  - Must support concurrent writes safely.
+  - Use optimistic locking and proper isolation levels.
+
+---
+
+#### 7. External Bank Communication
+- Async outbound calls:
+  - Use non-blocking HTTP clients (e.g., Spring WebClient) or async tasks.
+  - Each outbound ISO 20022 message can be sent in its own thread.
+
+---
+
+### Summary of Multithreaded Components
+- Message Processing Layer → Parallel validation and security checks.
+- Security Layer → Thread-safe cryptographic operations.
+- Escrow Service → Concurrent escrow lifecycle handling.
+- ActiveMQ Artemis Consumers → Parallel event processing.
+- Outbound Communication → Async HTTP calls to external banks.
